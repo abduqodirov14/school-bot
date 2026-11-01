@@ -428,7 +428,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
                         {dashboard.unmarked_classes_count} ta sinf hali davomat topshirmadi!
                       </p>
                       <p className="text-[11px] text-amber-700 mt-0.5">
-                        {dashboard.classes_status
+                        {(dashboard.classes_status || [])
                           .filter(c => !c.is_taken && c.total_students > 0)
                           .map(c => c.class_name)
                           .join(', ')}
@@ -478,19 +478,19 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
                       Bugun darsga kelmaganlar ({dashboard.absent_count})
                     </h3>
                   </div>
-                  {dashboard.absent_list.length === 0 ? (
+                  {(dashboard.absent_list || []).length === 0 ? (
                     <div className="p-4 text-center text-xs text-slate-400 font-medium">
                       Bugun hech kim dars qoldirmagan! 🎉
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {dashboard.absent_list.map(group => (
+                      {(dashboard.absent_list || []).map(group => (
                         <div key={group.class_id} className="p-3">
                           <p className="text-xs font-bold text-slate-800 mb-1.5">
                             🏫 {group.class_name} sinfi:
                           </p>
                           <div className="space-y-1 pl-2">
-                            {group.students.map((st, i) => (
+                            {(group.students || []).map((st, i) => (
                               <div key={st.student_id} className="text-xs flex items-center justify-between">
                                 <span className="text-slate-700">
                                   {i + 1}. {st.student_name}
@@ -510,7 +510,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
                 </div>
 
                 {/* Late students list */}
-                {dashboard.late_list.length > 0 && (
+                {(dashboard.late_list || []).length > 0 && (
                   <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
                     <div className="p-3 border-b border-slate-100">
                       <h3 className="text-xs font-bold text-amber-800 flex items-center gap-1.5">
@@ -519,13 +519,13 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
                       </h3>
                     </div>
                     <div className="divide-y divide-slate-100">
-                      {dashboard.late_list.map(group => (
+                      {(dashboard.late_list || []).map(group => (
                         <div key={group.class_id} className="p-3">
                           <p className="text-xs font-bold text-slate-800 mb-1.5">
                             🏫 {group.class_name} sinfi:
                           </p>
                           <div className="space-y-1 pl-2">
-                            {group.students.map((st, i) => (
+                            {(group.students || []).map((st, i) => (
                               <div key={st.student_id} className="text-xs text-slate-700">
                                 {i + 1}. {st.student_name}
                               </div>
@@ -543,7 +543,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
                     <h3 className="text-xs font-bold text-slate-900">Sinflar davomat holati</h3>
                   </div>
                   <div className="divide-y divide-slate-100">
-                    {dashboard.classes_status.map(cs => (
+                    {(dashboard.classes_status || []).map(cs => (
                       <div key={cs.class_id} className="p-3 flex items-center justify-between text-xs">
                         <div>
                           <p className="font-bold text-slate-900">{cs.class_name}</p>

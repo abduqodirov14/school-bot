@@ -136,9 +136,15 @@ export const api = {
   },
 
   // Director Dashboard & Settings
-  getTodayDashboard: (date?: string) => {
+  getTodayDashboard: async (date?: string) => {
     const q = date ? `?date=${date}` : '';
-    return apiFetch<TodayDashboardResponse>(`/api/dashboard/today${q}`);
+    const res = await apiFetch<TodayDashboardResponse>(`/api/dashboard/today${q}`);
+    return {
+      ...res,
+      absent_list: res.absent_list || [],
+      late_list: res.late_list || [],
+      classes_status: res.classes_status || [],
+    };
   },
   getSettings: () => apiFetch<SettingsData>('/api/settings'),
   updateSettings: (data: { absence_threshold: number; deadline_time: string }) =>

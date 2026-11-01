@@ -103,7 +103,7 @@ func (h *DashboardHandler) GetTodayDashboard(w http.ResponseWriter, r *http.Requ
 	}
 
 	absentGroupMap := make(map[int64]*ClassGroupedStudents)
-	var absentGroups []ClassGroupedStudents
+	absentGroups := make([]ClassGroupedStudents, 0)
 	for _, row := range absentRows {
 		group, exists := absentGroupMap[row.ClassID]
 		if !exists {
@@ -138,7 +138,7 @@ func (h *DashboardHandler) GetTodayDashboard(w http.ResponseWriter, r *http.Requ
 		lateRows = nil
 	}
 
-	var lateGroups []ClassGroupedStudents
+	lateGroups := make([]ClassGroupedStudents, 0)
 	for _, row := range lateRows {
 		found := false
 		for i := range lateGroups {
@@ -178,7 +178,7 @@ func (h *DashboardHandler) GetTodayDashboard(w http.ResponseWriter, r *http.Requ
 		classesRows = nil
 	}
 
-	var classStatusList []ClassAttendanceStatusItem
+	classStatusList := make([]ClassAttendanceStatusItem, 0)
 	unmarkedCount := 0
 	for _, c := range classesRows {
 		isTaken := c.MarkedStudents > 0
