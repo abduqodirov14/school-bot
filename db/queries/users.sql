@@ -36,6 +36,19 @@ SELECT * FROM users
 WHERE school_id = $1
 ORDER BY full_name ASC;
 
+-- name: UpsertInvitedUser :one
+INSERT INTO users (school_id, telegram_id, full_name, role, status)
+VALUES ($1, $2, $3, 'teacher', 'invited')
+ON CONFLICT (telegram_id) DO UPDATE
+SET school_id = EXCLUDED.school_id, full_name = EXCLUDED.full_name, role = 'teacher', updated_at = NOW()
+RETURNING *;
+
+-- name: ActivateInvitedUser :one
+UPDATE users
+SET status = 'active', updated_at = NOW()
+WHERE telegram_id = $1 AND status = 'invited'
+RETURNING *;
+
 -- name: GetDirectorBySchool :one
 SELECT * FROM users
 WHERE school_id = $1 AND role = 'director' AND status = 'active'

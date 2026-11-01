@@ -35,6 +35,22 @@ WHERE id = $1;
 -- name: DeleteStudent :exec
 DELETE FROM students WHERE id = $1;
 
+-- name: UpsertStudentNormalized :one
+INSERT INTO students (school_id, class_id, full_name, name_normalized, active)
+VALUES ($1, $2, $3, $4, TRUE)
+ON CONFLICT (class_id, name_normalized)
+DO UPDATE SET full_name = EXCLUDED.full_name, active = TRUE, updated_at = NOW()
+RETURNING *;
+
+-- name: FindStudentByNormalizedName :one
+SELECT * FROM students
+WHERE class_id = $1 AND name_normalized = $2 LIMIT 1;
+
+-- name: DeactivateMissingStudents :exec
+UPDATE students
+SET active = FALSE, updated_at = NOW()
+WHERE school_id = $1 AND id = ANY($2::bigint[]);
+
 -- name: CountActiveStudentsBySchool :one
 SELECT COUNT(*) FROM students s
 JOIN classes c ON s.class_id = c.id

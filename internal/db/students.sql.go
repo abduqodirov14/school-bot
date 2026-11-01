@@ -27,7 +27,7 @@ func (q *Queries) CountActiveStudentsBySchool(ctx context.Context, schoolID int6
 const createStudent = `-- name: CreateStudent :one
 INSERT INTO students (class_id, full_name, active)
 VALUES ($1, $2, TRUE)
-RETURNING id, class_id, full_name, active, created_at, updated_at
+RETURNING id, class_id, full_name, active, created_at, updated_at, name_normalized, school_id
 `
 
 type CreateStudentParams struct {
@@ -45,8 +45,26 @@ func (q *Queries) CreateStudent(ctx context.Context, arg CreateStudentParams) (S
 		&i.Active,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.NameNormalized,
+		&i.SchoolID,
 	)
 	return i, err
+}
+
+const deactivateMissingStudents = `-- name: DeactivateMissingStudents :exec
+UPDATE students
+SET active = FALSE, updated_at = NOW()
+WHERE school_id = $1 AND id = ANY($2::bigint[])
+`
+
+type DeactivateMissingStudentsParams struct {
+	SchoolID pgtype.Int8 `json:"school_id"`
+	Column2  []int64     `json:"column_2"`
+}
+
+func (q *Queries) DeactivateMissingStudents(ctx context.Context, arg DeactivateMissingStudentsParams) error {
+	_, err := q.db.Exec(ctx, deactivateMissingStudents, arg.SchoolID, arg.Column2)
+	return err
 }
 
 const deactivateStudent = `-- name: DeactivateStudent :exec
@@ -69,21 +87,49 @@ func (q *Queries) DeleteStudent(ctx context.Context, id int64) error {
 	return err
 }
 
+const findStudentByNormalizedName = `-- name: FindStudentByNormalizedName :one
+SELECT id, class_id, full_name, active, created_at, updated_at, name_normalized, school_id FROM students
+WHERE class_id = $1 AND name_normalized = $2 LIMIT 1
+`
+
+type FindStudentByNormalizedNameParams struct {
+	ClassID        int64  `json:"class_id"`
+	NameNormalized string `json:"name_normalized"`
+}
+
+func (q *Queries) FindStudentByNormalizedName(ctx context.Context, arg FindStudentByNormalizedNameParams) (Student, error) {
+	row := q.db.QueryRow(ctx, findStudentByNormalizedName, arg.ClassID, arg.NameNormalized)
+	var i Student
+	err := row.Scan(
+		&i.ID,
+		&i.ClassID,
+		&i.FullName,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.NameNormalized,
+		&i.SchoolID,
+	)
+	return i, err
+}
+
 const getStudentByID = `-- name: GetStudentByID :one
-SELECT s.id, s.class_id, s.full_name, s.active, s.created_at, s.updated_at, c.name AS class_name
+SELECT s.id, s.class_id, s.full_name, s.active, s.created_at, s.updated_at, s.name_normalized, s.school_id, c.name AS class_name
 FROM students s
 JOIN classes c ON s.class_id = c.id
 WHERE s.id = $1
 `
 
 type GetStudentByIDRow struct {
-	ID        int64              `json:"id"`
-	ClassID   int64              `json:"class_id"`
-	FullName  string             `json:"full_name"`
-	Active    bool               `json:"active"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	ClassName string             `json:"class_name"`
+	ID             int64              `json:"id"`
+	ClassID        int64              `json:"class_id"`
+	FullName       string             `json:"full_name"`
+	Active         bool               `json:"active"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	NameNormalized string             `json:"name_normalized"`
+	SchoolID       pgtype.Int8        `json:"school_id"`
+	ClassName      string             `json:"class_name"`
 }
 
 func (q *Queries) GetStudentByID(ctx context.Context, id int64) (GetStudentByIDRow, error) {
@@ -96,13 +142,15 @@ func (q *Queries) GetStudentByID(ctx context.Context, id int64) (GetStudentByIDR
 		&i.Active,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.NameNormalized,
+		&i.SchoolID,
 		&i.ClassName,
 	)
 	return i, err
 }
 
 const listStudentsByClass = `-- name: ListStudentsByClass :many
-SELECT id, class_id, full_name, active, created_at, updated_at FROM students
+SELECT id, class_id, full_name, active, created_at, updated_at, name_normalized, school_id FROM students
 WHERE class_id = $1 AND active = TRUE
 ORDER BY full_name ASC
 `
@@ -123,6 +171,8 @@ func (q *Queries) ListStudentsByClass(ctx context.Context, classID int64) ([]Stu
 			&i.Active,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.NameNormalized,
+			&i.SchoolID,
 		); err != nil {
 			return nil, err
 		}
@@ -135,7 +185,7 @@ func (q *Queries) ListStudentsByClass(ctx context.Context, classID int64) ([]Stu
 }
 
 const listStudentsBySchool = `-- name: ListStudentsBySchool :many
-SELECT s.id, s.class_id, s.full_name, s.active, s.created_at, s.updated_at, c.name AS class_name
+SELECT s.id, s.class_id, s.full_name, s.active, s.created_at, s.updated_at, s.name_normalized, s.school_id, c.name AS class_name
 FROM students s
 JOIN classes c ON s.class_id = c.id
 WHERE c.school_id = $1 AND s.active = TRUE
@@ -143,13 +193,15 @@ ORDER BY c.name ASC, s.full_name ASC
 `
 
 type ListStudentsBySchoolRow struct {
-	ID        int64              `json:"id"`
-	ClassID   int64              `json:"class_id"`
-	FullName  string             `json:"full_name"`
-	Active    bool               `json:"active"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	ClassName string             `json:"class_name"`
+	ID             int64              `json:"id"`
+	ClassID        int64              `json:"class_id"`
+	FullName       string             `json:"full_name"`
+	Active         bool               `json:"active"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	NameNormalized string             `json:"name_normalized"`
+	SchoolID       pgtype.Int8        `json:"school_id"`
+	ClassName      string             `json:"class_name"`
 }
 
 func (q *Queries) ListStudentsBySchool(ctx context.Context, schoolID int64) ([]ListStudentsBySchoolRow, error) {
@@ -168,6 +220,8 @@ func (q *Queries) ListStudentsBySchool(ctx context.Context, schoolID int64) ([]L
 			&i.Active,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.NameNormalized,
+			&i.SchoolID,
 			&i.ClassName,
 		); err != nil {
 			return nil, err
@@ -184,7 +238,7 @@ const updateStudent = `-- name: UpdateStudent :one
 UPDATE students
 SET full_name = $2, class_id = $3, active = $4, updated_at = NOW()
 WHERE id = $1
-RETURNING id, class_id, full_name, active, created_at, updated_at
+RETURNING id, class_id, full_name, active, created_at, updated_at, name_normalized, school_id
 `
 
 type UpdateStudentParams struct {
@@ -209,6 +263,44 @@ func (q *Queries) UpdateStudent(ctx context.Context, arg UpdateStudentParams) (S
 		&i.Active,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.NameNormalized,
+		&i.SchoolID,
+	)
+	return i, err
+}
+
+const upsertStudentNormalized = `-- name: UpsertStudentNormalized :one
+INSERT INTO students (school_id, class_id, full_name, name_normalized, active)
+VALUES ($1, $2, $3, $4, TRUE)
+ON CONFLICT (class_id, name_normalized)
+DO UPDATE SET full_name = EXCLUDED.full_name, active = TRUE, updated_at = NOW()
+RETURNING id, class_id, full_name, active, created_at, updated_at, name_normalized, school_id
+`
+
+type UpsertStudentNormalizedParams struct {
+	SchoolID       pgtype.Int8 `json:"school_id"`
+	ClassID        int64       `json:"class_id"`
+	FullName       string      `json:"full_name"`
+	NameNormalized string      `json:"name_normalized"`
+}
+
+func (q *Queries) UpsertStudentNormalized(ctx context.Context, arg UpsertStudentNormalizedParams) (Student, error) {
+	row := q.db.QueryRow(ctx, upsertStudentNormalized,
+		arg.SchoolID,
+		arg.ClassID,
+		arg.FullName,
+		arg.NameNormalized,
+	)
+	var i Student
+	err := row.Scan(
+		&i.ID,
+		&i.ClassID,
+		&i.FullName,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.NameNormalized,
+		&i.SchoolID,
 	)
 	return i, err
 }

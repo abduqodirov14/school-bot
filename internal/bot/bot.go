@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	tgbot "github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -121,7 +122,22 @@ func (b *Bot) handleStart(ctx context.Context, botInstance *tgbot.Bot, update *m
 	sID := pgtype.Int8{Int64: schoolID, Valid: schoolID != 0}
 	usernameText := pgtype.Text{String: from.Username, Valid: from.Username != ""}
 
-	// 1. Is this the configured Director or the first user when no director exists yet?
+	// Check for start payload: /start inv_<token>
+	text := strings.TrimSpace(update.Message.Text)
+	fields := strings.Fields(text)
+	var payload string
+	if len(fields) > 1 {
+		payload = strings.TrimSpace(fields[1])
+	}
+
+	// 1. Payload inv_<token>
+	if strings.HasPrefix(payload, "inv_") {
+		token := strings.TrimPrefix(payload, "inv_")
+		b.handleInviteRedemption(ctx, botInstance, chatID, from, token, fullName, usernameText)
+		return
+	}
+
+	// Check if this is the configured Director
 	isDirector := false
 	if b.cfg.DirectorTelegramID != 0 && from.ID == b.cfg.DirectorTelegramID {
 		isDirector = true
@@ -183,77 +199,47 @@ func (b *Bot) handleStart(ctx context.Context, botInstance *tgbot.Bot, update *m
 		return
 	}
 
-	// 2. Regular user / teacher check
+	// 2 & 3. Check existing user
 	user, err := b.db.Queries.GetUserByTelegramID(ctx, from.ID)
-	if err != nil {
-		// New user -> register as pending teacher
-		createdUser, createErr := b.db.Queries.CreateUser(ctx, db.CreateUserParams{
-			SchoolID:   sID,
-			TelegramID: from.ID,
-			Username:   usernameText,
-			FullName:   fullName,
-			Role:       "teacher",
-			Status:     "pending",
-		})
-		if createErr != nil {
-			log.Printf("Yangi foydalanuvchini yaratishda xatolik: %v", createErr)
-			_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
-				ChatID: chatID,
-				Text:   "Kechirasiz, ro'yxatdan o'tishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+	if err == nil {
+		// 2. If status == 'invited', activate without approval
+		if user.Status == "invited" {
+			_, _ = b.db.Queries.UpdateUserStatus(ctx, db.UpdateUserStatusParams{
+				TelegramID: from.ID,
+				Status:     "active",
+				Role:       user.Role,
 			})
-			return
+			user.Status = "active"
 		}
 
-		// Notify user
-		_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
-			ChatID: chatID,
-			Text: fmt.Sprintf("Assalomu alaykum, *%s*!\n\n"+
-				"Maktab Davomati tizimiga xush kelibsiz. Sizning o'qituvchi sifatida ro'yxatdan o'tish so'rovingiz direktorga yuborildi.\n\n"+
-				"⏳ Iltimos, direktor tasdiqlashini kuting.", fullName),
-			ParseMode: models.ParseModeMarkdown,
-		})
-
-		// Notify Director
-		b.notifyDirectorNewUser(ctx, botInstance, createdUser)
-		return
-	}
-
-	// Existing user handling
-	switch user.Status {
-	case "pending":
-		_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "⏳ Sizning arizangiz maktab direktori tomonidan ko'rib chiqilmoqda. Iltimos, kuting.",
-		})
-	case "rejected":
-		_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
-			ChatID: chatID,
-			Text:   "❌ Kechirasiz, sizning so'rovingiz maktab direktori tomonidan rad etilgan.",
-		})
-	case "active":
-		if user.Role == "director" {
-			replyMarkup := &models.InlineKeyboardMarkup{
-				InlineKeyboard: [][]models.InlineKeyboardButton{
-					{
+		// 3. Known active user
+		if user.Status == "active" {
+			if user.Role == "director" {
+				replyMarkup := &models.InlineKeyboardMarkup{
+					InlineKeyboard: [][]models.InlineKeyboardButton{
 						{
-							Text:   "📱 Boshqaruv Paneli",
-							WebApp: &models.WebAppInfo{URL: b.cfg.WebAppURL},
+							{
+								Text:   "📱 Boshqaruv Paneli",
+								WebApp: &models.WebAppInfo{URL: b.cfg.WebAppURL},
+							},
 						},
 					},
-				},
+				}
+				_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
+					ChatID:      chatID,
+					Text:        fmt.Sprintf("🎓 **Assalomu alaykum, Hurmatli Direktor (%s)!**\n\nBoshqaruv panelini ochish uchun pastdagi tugmani bosing.", user.FullName),
+					ParseMode:   models.ParseModeMarkdown,
+					ReplyMarkup: replyMarkup,
+				})
+				return
 			}
-			_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
-				ChatID:      chatID,
-				Text:        fmt.Sprintf("🎓 **Assalomu alaykum, Hurmatli Direktor (%s)!**\n\nBoshqaruv panelini ochish uchun pastdagi tugmani bosing.", user.FullName),
-				ParseMode:   models.ParseModeMarkdown,
-				ReplyMarkup: replyMarkup,
-			})
-		} else {
+
+			// Teacher
 			replyMarkup := &models.InlineKeyboardMarkup{
 				InlineKeyboard: [][]models.InlineKeyboardButton{
 					{
 						{
-							Text:   "📋 Davomat Olish (Mini App)",
+							Text:   "📋 Mening sinfim (Mini App)",
 							WebApp: &models.WebAppInfo{URL: b.cfg.WebAppURL},
 						},
 					},
@@ -266,8 +252,179 @@ func (b *Bot) handleStart(ctx context.Context, botInstance *tgbot.Bot, update *m
 				ParseMode:   models.ParseModeMarkdown,
 				ReplyMarkup: replyMarkup,
 			})
+			return
+		}
+
+		if user.Status == "pending" {
+			_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
+				ChatID: chatID,
+				Text:   "⏳ Sizning arizangiz maktab direktori tomonidan ko'rib chiqilmoqda. Iltimos, kuting.",
+			})
+			return
+		}
+
+		if user.Status == "blocked" || user.Status == "rejected" {
+			_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
+				ChatID: chatID,
+				Text:   "❌ Kechirasiz, sizning hisobingiz bloklangan yoki rad etilgan.",
+			})
+			return
 		}
 	}
+
+	// 4. Unknown user -> register as pending teacher and notify director
+	createdUser, createErr := b.db.Queries.CreateUser(ctx, db.CreateUserParams{
+		SchoolID:   sID,
+		TelegramID: from.ID,
+		Username:   usernameText,
+		FullName:   fullName,
+		Role:       "teacher",
+		Status:     "pending",
+	})
+	if createErr != nil {
+		log.Printf("Yangi foydalanuvchini yaratishda xatolik: %v", createErr)
+		_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
+			ChatID: chatID,
+			Text:   "Kechirasiz, ro'yxatdan o'tishda xatolik yuz berdi. Iltimos, qayta urinib ko'ring.",
+		})
+		return
+	}
+
+	// Notify user
+	_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
+		ChatID: chatID,
+		Text: fmt.Sprintf("Assalomu alaykum, *%s*!\n\n"+
+			"Maktab Davomati tizimiga xush kelibsiz. Sizning o'qituvchi sifatida ro'yxatdan o'tish so'rovingiz direktorga yuborildi.\n\n"+
+			"⏳ Iltimos, direktor tasdiqlashini kuting.", fullName),
+		ParseMode: models.ParseModeMarkdown,
+	})
+
+	// Notify Director
+	b.notifyDirectorNewUser(ctx, botInstance, createdUser)
+}
+
+func (b *Bot) handleInviteRedemption(ctx context.Context, botInstance *tgbot.Bot, chatID int64, from *models.User, token string, fullName string, usernameText pgtype.Text) {
+	badTokenMsg := "Havola eskirgan yoki ishlatilgan. Direktordan yangisini so'rang."
+
+	tx, err := b.db.Pool.Begin(ctx)
+	if err != nil {
+		_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
+			ChatID: chatID,
+			Text:   badTokenMsg,
+		})
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	// SELECT FOR UPDATE on invite
+	var inviteID int64
+	var schoolID int64
+	var classID int64
+	var role string
+	var expiresAt time.Time
+	var usedAt *time.Time
+	var className string
+
+	err = tx.QueryRow(ctx, `
+		SELECT inv.id, inv.school_id, inv.class_id, inv.role, inv.expires_at, inv.used_at, c.name
+		FROM invites inv
+		JOIN classes c ON inv.class_id = c.id
+		WHERE inv.token = $1
+		FOR UPDATE
+	`, token).Scan(&inviteID, &schoolID, &classID, &role, &expiresAt, &usedAt, &className)
+
+	if err != nil || usedAt != nil || time.Now().After(expiresAt) {
+		_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
+			ChatID: chatID,
+			Text:   badTokenMsg,
+		})
+		return
+	}
+
+	// Upsert user: get existing or insert
+	var userID int64
+	err = tx.QueryRow(ctx, `SELECT id FROM users WHERE telegram_id = $1`, from.ID).Scan(&userID)
+	if err != nil {
+		err = tx.QueryRow(ctx, `
+			INSERT INTO users (school_id, telegram_id, username, full_name, role, status)
+			VALUES ($1, $2, $3, $4, 'teacher', 'active')
+			RETURNING id
+		`, schoolID, from.ID, usernameText.String, fullName).Scan(&userID)
+		if err != nil {
+			log.Printf("Taklif orqali foydalanuvchi yaratishda xatolik: %v", err)
+			_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{ChatID: chatID, Text: badTokenMsg})
+			return
+		}
+	} else {
+		_, err = tx.Exec(ctx, `
+			UPDATE users 
+			SET status = 'active', role = 'teacher', school_id = $1, full_name = $2
+			WHERE id = $3
+		`, schoolID, fullName, userID)
+		if err != nil {
+			log.Printf("Taklif orqali foydalanuvchi yangilashda xatolik: %v", err)
+			_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{ChatID: chatID, Text: badTokenMsg})
+			return
+		}
+	}
+
+	// Mark invite as used
+	res, err := tx.Exec(ctx, `
+		UPDATE invites
+		SET used_at = NOW(), used_by = $1
+		WHERE id = $2 AND used_at IS NULL
+	`, userID, inviteID)
+	if err != nil || res.RowsAffected() == 0 {
+		_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{ChatID: chatID, Text: badTokenMsg})
+		return
+	}
+
+	// Terminate active primary teacher for this class
+	_, _ = tx.Exec(ctx, `
+		UPDATE class_teachers
+		SET valid_until = CURRENT_DATE
+		WHERE class_id = $1 AND role = 'primary' AND valid_until IS NULL
+	`, classID)
+
+	// Insert into class_teachers as primary
+	_, err = tx.Exec(ctx, `
+		INSERT INTO class_teachers (class_id, user_id, role, valid_from, valid_until, assigned_by)
+		VALUES ($1, $2, 'primary', CURRENT_DATE, NULL, $3)
+	`, classID, userID, userID)
+	if err != nil {
+		log.Printf("Sinf rahbarini class_teachers ga kiritishda xatolik: %v", err)
+		_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{ChatID: chatID, Text: badTokenMsg})
+		return
+	}
+
+	// Also update classes table teacher_id
+	_, _ = tx.Exec(ctx, `UPDATE classes SET teacher_id = $1 WHERE id = $2`, userID, classID)
+
+	if err := tx.Commit(ctx); err != nil {
+		_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{ChatID: chatID, Text: badTokenMsg})
+		return
+	}
+
+	// Success message in Uzbek
+	replyMarkup := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{
+					Text:   "📋 Mening sinfim",
+					WebApp: &models.WebAppInfo{URL: b.cfg.WebAppURL},
+				},
+			},
+		},
+	}
+
+	msg := fmt.Sprintf("Siz **%s** sinf rahbari sifatida qo'shildingiz", className)
+
+	_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
+		ChatID:      chatID,
+		Text:        msg,
+		ParseMode:   models.ParseModeMarkdown,
+		ReplyMarkup: replyMarkup,
+	})
 }
 
 func (b *Bot) notifyDirectorNewUser(ctx context.Context, botInstance *tgbot.Bot, user db.User) {

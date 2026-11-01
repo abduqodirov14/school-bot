@@ -41,6 +41,47 @@ type Class struct {
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
+type ClassTeacher struct {
+	ID         int64              `json:"id"`
+	ClassID    int64              `json:"class_id"`
+	UserID     int64              `json:"user_id"`
+	Role       string             `json:"role"`
+	ValidFrom  pgtype.Date        `json:"valid_from"`
+	ValidUntil pgtype.Date        `json:"valid_until"`
+	AssignedBy pgtype.Int8        `json:"assigned_by"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
+
+type ImportJob struct {
+	ID            pgtype.UUID        `json:"id"`
+	SchoolID      int64              `json:"school_id"`
+	Status        string             `json:"status"`
+	TotalRows     int32              `json:"total_rows"`
+	ProcessedRows int32              `json:"processed_rows"`
+	CreatedCount  int32              `json:"created_count"`
+	UpdatedCount  int32              `json:"updated_count"`
+	SkippedCount  int32              `json:"skipped_count"`
+	FailedCount   int32              `json:"failed_count"`
+	Payload       []byte             `json:"payload"`
+	Errors        []byte             `json:"errors"`
+	Summary       []byte             `json:"summary"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Invite struct {
+	ID        int64              `json:"id"`
+	Token     string             `json:"token"`
+	SchoolID  int64              `json:"school_id"`
+	ClassID   int64              `json:"class_id"`
+	Role      string             `json:"role"`
+	CreatedBy pgtype.Int8        `json:"created_by"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	UsedAt    pgtype.Timestamptz `json:"used_at"`
+	UsedBy    pgtype.Int8        `json:"used_by"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type School struct {
 	ID        int64              `json:"id"`
 	Name      string             `json:"name"`
@@ -58,12 +99,14 @@ type Setting struct {
 }
 
 type Student struct {
-	ID        int64              `json:"id"`
-	ClassID   int64              `json:"class_id"`
-	FullName  string             `json:"full_name"`
-	Active    bool               `json:"active"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID             int64              `json:"id"`
+	ClassID        int64              `json:"class_id"`
+	FullName       string             `json:"full_name"`
+	Active         bool               `json:"active"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	NameNormalized string             `json:"name_normalized"`
+	SchoolID       pgtype.Int8        `json:"school_id"`
 }
 
 type ThresholdAlert struct {

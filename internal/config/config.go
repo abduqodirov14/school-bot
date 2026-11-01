@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Port               string
 	BotToken           string
+	BotUsername        string
 	DatabaseURL        string
 	WebAppURL          string
 	DirectorTelegramID int64
@@ -26,6 +27,11 @@ func Load() (*Config, error) {
 	botToken := os.Getenv("BOT_TOKEN")
 	if botToken == "" {
 		// Log warning or keep empty for testing
+	}
+
+	botUsername := os.Getenv("BOT_USERNAME")
+	if botUsername == "" {
+		botUsername = "HozirDavomatBot"
 	}
 
 	databaseURL := os.Getenv("DATABASE_URL")
@@ -60,6 +66,7 @@ func Load() (*Config, error) {
 	return &Config{
 		Port:               port,
 		BotToken:           botToken,
+		BotUsername:        botUsername,
 		DatabaseURL:        databaseURL,
 		WebAppURL:          webAppURL,
 		DirectorTelegramID: directorTGID,

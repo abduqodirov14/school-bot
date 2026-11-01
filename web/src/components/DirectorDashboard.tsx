@@ -8,6 +8,9 @@ import type {
   TeacherItem,
   TodayDashboardResponse,
 } from '../types';
+import { BulkClassModal } from './BulkClassModal';
+import { ExcelImportWizard } from './ExcelImportWizard';
+import { TeachersOverviewTab } from './TeachersOverviewTab';
 import {
   BarChart3,
   Users,
@@ -27,6 +30,8 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageSquare,
+  UserCheck,
+  Layers,
 } from 'lucide-react';
 
 interface Props {
@@ -34,7 +39,7 @@ interface Props {
 }
 
 export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
-  const [activeTab, setActiveTab] = useState<'today' | 'classes' | 'students' | 'settings'>('today');
+  const [activeTab, setActiveTab] = useState<'today' | 'classes' | 'teachers' | 'students' | 'settings'>('today');
 
   // Today Dashboard State
   const [todayDate, setTodayDate] = useState<string>(getTashkentDate());
@@ -46,6 +51,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
   const [teachers, setTeachers] = useState<TeacherItem[]>([]);
   const [loadingClasses, setLoadingClasses] = useState<boolean>(false);
   const [classModalOpen, setClassModalOpen] = useState<boolean>(false);
+  const [bulkClassModalOpen, setBulkClassModalOpen] = useState<boolean>(false);
   const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
   const [classNameInput, setClassNameInput] = useState<string>('');
   const [selectedTeacherId, setSelectedTeacherId] = useState<number | null>(null);
@@ -61,8 +67,6 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
 
   // Import State
   const [importModalOpen, setImportModalOpen] = useState<boolean>(false);
-  const [importing, setImporting] = useState<boolean>(false);
-  const [importResult, setImportResult] = useState<{ imported: number; classes: number; errors: string[] } | null>(null);
 
   // Student History Calendar State
   const [historyModalOpen, setHistoryModalOpen] = useState<boolean>(false);
@@ -115,7 +119,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
 
   useEffect(() => {
     if (activeTab === 'today') loadTodayDashboard(todayDate);
-    if (activeTab === 'classes') loadClassesAndTeachers();
+    if (activeTab === 'classes' || activeTab === 'teachers') loadClassesAndTeachers();
     if (activeTab === 'students') {
       loadClassesAndTeachers();
       loadStudents();
@@ -269,30 +273,6 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
     }
   };
 
-  // Excel Import
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImporting(true);
-    setImportResult(null);
-    try {
-      const res = await api.importStudents(file);
-      setImportResult({
-        imported: res.imported_students,
-        classes: res.created_classes,
-        errors: res.errors || [],
-      });
-      showToast(`Muvaffaqiyatli: ${res.imported_students} o‘quvchi import qilindi!`);
-      loadClassesAndTeachers();
-      loadStudents();
-    } catch (err: any) {
-      showToast(err.message || 'Importda xatolik');
-    } finally {
-      setImporting(false);
-    }
-  };
-
   // Save Settings
   const handleSaveSettings = async () => {
     setSavingSettings(true);
@@ -340,10 +320,10 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
       )}
 
       {/* Tab Navigation */}
-      <nav className="bg-white border-b border-slate-200 px-2 flex justify-around text-xs font-bold sticky top-14 z-10">
+      <nav className="bg-white border-b border-slate-200 px-1 flex justify-around text-xs font-bold sticky top-14 z-10 overflow-x-auto">
         <button
           onClick={() => setActiveTab('today')}
-          className={`py-3 px-3 border-b-2 flex items-center gap-1.5 transition-all ${
+          className={`py-3 px-2.5 border-b-2 flex items-center gap-1 transition-all shrink-0 ${
             activeTab === 'today'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -353,7 +333,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
         </button>
         <button
           onClick={() => setActiveTab('classes')}
-          className={`py-3 px-3 border-b-2 flex items-center gap-1.5 transition-all ${
+          className={`py-3 px-2.5 border-b-2 flex items-center gap-1 transition-all shrink-0 ${
             activeTab === 'classes'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -362,8 +342,18 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
           <School className="w-4 h-4" /> Sinflar
         </button>
         <button
+          onClick={() => setActiveTab('teachers')}
+          className={`py-3 px-2.5 border-b-2 flex items-center gap-1 transition-all shrink-0 ${
+            activeTab === 'teachers'
+              ? 'border-emerald-600 text-emerald-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <UserCheck className="w-4 h-4" /> Rahbarlar
+        </button>
+        <button
           onClick={() => setActiveTab('students')}
-          className={`py-3 px-3 border-b-2 flex items-center gap-1.5 transition-all ${
+          className={`py-3 px-2.5 border-b-2 flex items-center gap-1 transition-all shrink-0 ${
             activeTab === 'students'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -373,7 +363,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
         </button>
         <button
           onClick={() => setActiveTab('settings')}
-          className={`py-3 px-3 border-b-2 flex items-center gap-1.5 transition-all ${
+          className={`py-3 px-2.5 border-b-2 flex items-center gap-1 transition-all shrink-0 ${
             activeTab === 'settings'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -576,17 +566,25 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-bold text-slate-700">Mavjud Sinflar ({(classes || []).length})</h2>
-              <button
-                onClick={() => {
-                  setEditingClass(null);
-                  setClassNameInput('');
-                  setSelectedTeacherId(null);
-                  setClassModalOpen(true);
-                }}
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs active:scale-95 transition-all"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[3]" /> Yangi sinf
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setBulkClassModalOpen(true)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-200 active:scale-95 transition-all"
+                >
+                  <Layers className="w-3.5 h-3.5" /> Ommaviy
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingClass(null);
+                    setClassNameInput('');
+                    setSelectedTeacherId(null);
+                    setClassModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs active:scale-95 transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" /> Yangi sinf
+                </button>
+              </div>
             </div>
 
             {loadingClasses ? (
@@ -636,6 +634,11 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
               </div>
             )}
           </div>
+        )}
+
+        {/* ================= TAB 3: TEACHERS (Sinf Rahbarlari) ================= */}
+        {activeTab === 'teachers' && (
+          <TeachersOverviewTab teachers={teachers} onShowToast={showToast} />
         )}
 
         {/* ================= TAB 3: STUDENTS ================= */}
@@ -897,51 +900,26 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
         </div>
       )}
 
-      {/* ================= MODAL: EXCEL IMPORT ================= */}
-      {importModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 z-50">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-4 shadow-xl border border-slate-200 animate-in fade-in">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-bold text-slate-900">Exceldan O'quvchilarni Import Qilish</h3>
-              <button onClick={() => setImportModalOpen(false)} className="text-slate-400 p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* ================= MODAL: EXCEL IMPORT WIZARD ================= */}
+      <ExcelImportWizard
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={msg => {
+          showToast(msg);
+          loadClassesAndTeachers();
+          loadStudents();
+        }}
+      />
 
-            <p className="text-xs text-slate-500 mb-3">
-              .xlsx formatidagi faylni tanlang. Faylda <strong>Sinf</strong> va <strong>F.I.SH</strong> ustunlari bo'lishi kerak.
-            </p>
-
-            <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center mb-4">
-              <input
-                type="file"
-                accept=".xlsx"
-                onChange={handleFileUpload}
-                disabled={importing}
-                className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-              />
-              {importing && <p className="text-xs text-emerald-600 font-bold mt-2">Import qilinmoqda...</p>}
-            </div>
-
-            {importResult && (
-              <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-xs space-y-1 mb-3">
-                <p>✅ <strong>{importResult.imported}</strong> ta o'quvchi import qilindi</p>
-                <p>🏫 <strong>{importResult.classes}</strong> ta yangi sinf yaratildi</p>
-                {(importResult.errors || []).length > 0 && (
-                  <p className="text-rose-600 text-[11px]">Xatoliklar: {(importResult.errors || []).length} ta qator</p>
-                )}
-              </div>
-            )}
-
-            <button
-              onClick={() => setImportModalOpen(false)}
-              className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-xl text-xs"
-            >
-              Yopish
-            </button>
-          </div>
-        </div>
-      )}
+      {/* ================= MODAL: BULK CLASS CREATION ================= */}
+      <BulkClassModal
+        isOpen={bulkClassModalOpen}
+        onClose={() => setBulkClassModalOpen(false)}
+        onSuccess={msg => {
+          showToast(msg);
+          loadClassesAndTeachers();
+        }}
+      />
 
       {/* ================= MODAL: STUDENT ATTENDANCE CALENDAR ================= */}
       {historyModalOpen && (

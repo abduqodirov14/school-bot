@@ -135,6 +135,79 @@ export interface StudentHistoryResponse {
   days: StudentHistoryDayItem[];
 }
 
+export interface BulkCreateClassesRequest {
+  start_grade: number;
+  end_grade: number;
+  parallels: string[];
+}
+
+export interface BulkCreateClassesResponse {
+  created_count: number;
+  skipped_count: number;
+  classes: ClassItem[];
+}
+
+export interface TeacherOverviewItem {
+  class_id: number;
+  class_name: string;
+  school_id: number;
+  student_count: number;
+  primary_record_id?: number | null;
+  primary_user_id?: number | null;
+  primary_teacher_name?: string | null;
+  primary_telegram_id?: number | null;
+  primary_user_status?: string | null;
+  sub_record_id?: number | null;
+  sub_user_id?: number | null;
+  sub_teacher_name?: string | null;
+  sub_valid_from?: string | null;
+  sub_valid_until?: string | null;
+  active_invite_token?: string | null;
+  active_invite_expires_at?: string | null;
+}
+
+export interface AssignTeacherResponse {
+  class_id: number;
+  teacher?: User;
+  invite_token?: string;
+  invite_url?: string;
+  share_url?: string;
+  expires_at?: string;
+  message: string;
+}
+
+export interface ImportPreviewError {
+  row: number;
+  sheet: string;
+  reason: string;
+}
+
+export interface ImportPreviewResponse {
+  job_id: string;
+  total_rows: number;
+  total_classes: number;
+  new_students: number;
+  existing_students: number;
+  duplicate_rows: number;
+  error_rows: number;
+  missing_classes: string[];
+  errors: ImportPreviewError[];
+}
+
+export interface ImportJobStatusResponse {
+  id: string;
+  status: 'pending' | 'running' | 'done' | 'failed';
+  total_rows: number;
+  processed_rows: number;
+  created_count: number;
+  updated_count: number;
+  skipped_count: number;
+  failed_count: number;
+  missing_from_file_count: number;
+  summary: any;
+  error_message?: string;
+}
+
 export const getTashkentDate = (d: Date = new Date()): string => {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(d);
 };

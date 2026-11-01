@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"school-attendance/internal/config"
 	"school-attendance/internal/db"
 	"school-attendance/internal/service"
@@ -58,10 +60,19 @@ func (h *AttendanceHandler) GetAttendance(w http.ResponseWriter, r *http.Request
 
 	// Verify teacher authorization
 	if user.Role == "teacher" {
-		class, err := h.db.Queries.GetClassByID(r.Context(), classID)
-		if err != nil || !class.TeacherID.Valid || class.TeacherID.Int64 != user.ID {
-			JSONError(w, "Siz faqat o'zingizga biriktirilgan sinf davomatini ko'ra olasiz", http.StatusForbidden)
-			return
+		now := time.Now().In(h.cfg.Location)
+		todayPg := pgtype.Date{Time: now, Valid: true}
+		hasAccess, err := h.db.Queries.CheckTeacherClassAccess(r.Context(), db.CheckTeacherClassAccessParams{
+			UserID:  user.ID,
+			ClassID: classID,
+			Column3: todayPg,
+		})
+		if err != nil || hasAccess == 0 {
+			class, cErr := h.db.Queries.GetClassByID(r.Context(), classID)
+			if cErr != nil || !class.TeacherID.Valid || class.TeacherID.Int64 != user.ID {
+				JSONError(w, "Siz faqat o'zingizga biriktirilgan sinf davomatini ko'ra olasiz", http.StatusForbidden)
+				return
+			}
 		}
 	}
 
@@ -104,10 +115,19 @@ func (h *AttendanceHandler) SaveAttendance(w http.ResponseWriter, r *http.Reques
 	}
 
 	if user.Role == "teacher" {
-		class, err := h.db.Queries.GetClassByID(r.Context(), req.ClassID)
-		if err != nil || !class.TeacherID.Valid || class.TeacherID.Int64 != user.ID {
-			JSONError(w, "Siz faqat o'zingizga biriktirilgan sinf davomatini saqlay olasiz", http.StatusForbidden)
-			return
+		now := time.Now().In(h.cfg.Location)
+		todayPg := pgtype.Date{Time: now, Valid: true}
+		hasAccess, err := h.db.Queries.CheckTeacherClassAccess(r.Context(), db.CheckTeacherClassAccessParams{
+			UserID:  user.ID,
+			ClassID: req.ClassID,
+			Column3: todayPg,
+		})
+		if err != nil || hasAccess == 0 {
+			class, cErr := h.db.Queries.GetClassByID(r.Context(), req.ClassID)
+			if cErr != nil || !class.TeacherID.Valid || class.TeacherID.Int64 != user.ID {
+				JSONError(w, "Siz faqat o'zingizga biriktirilgan sinf davomatini saqlay olasiz", http.StatusForbidden)
+				return
+			}
 		}
 	}
 

@@ -1,9 +1,15 @@
 import type {
+  AssignTeacherResponse,
+  BulkCreateClassesRequest,
+  BulkCreateClassesResponse,
   ClassAttendanceData,
   ClassItem,
+  ImportJobStatusResponse,
+  ImportPreviewResponse,
   SettingsData,
   StudentHistoryResponse,
   TeacherItem,
+  TeacherOverviewItem,
   TodayDashboardResponse,
   UserProfileResponse,
 } from '../types';
@@ -79,6 +85,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  bulkCreateClasses: (data: BulkCreateClassesRequest) =>
+    apiFetch<BulkCreateClassesResponse>('/api/classes/bulk', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   updateClass: (id: number, data: { name: string; teacher_id?: number | null }) =>
     apiFetch<ClassItem>(`/api/classes/${id}`, {
       method: 'PUT',
@@ -92,6 +103,48 @@ export const api = {
     const res = await apiFetch<TeacherItem[]>('/api/teachers');
     return Array.isArray(res) ? res : [];
   },
+
+  // Class Teachers & Substitutes
+  getTeachersOverview: async () => {
+    const res = await apiFetch<TeacherOverviewItem[]>('/api/classes/teachers/overview');
+    return Array.isArray(res) ? res : [];
+  },
+  assignTeacher: (classId: number, data: { telegram_id?: number; full_name?: string; generate_invite?: boolean }) =>
+    apiFetch<AssignTeacherResponse>(`/api/classes/${classId}/teacher`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  unassignTeacher: (classId: number) =>
+    apiFetch<{ message: string }>(`/api/classes/${classId}/teacher`, {
+      method: 'DELETE',
+    }),
+  assignSubstitute: (classId: number, data: { user_id: number; valid_from: string; valid_until?: string }) =>
+    apiFetch<any>(`/api/classes/${classId}/substitute`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Excel Importer
+  previewImport: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiFetch<ImportPreviewResponse>('/api/import/preview', {
+      method: 'POST',
+      body: formData,
+    });
+  },
+  commitImport: (jobId: string, createMissingClasses: boolean = true) =>
+    apiFetch<{ message: string; job_id: string }>(`/api/import/${jobId}/commit`, {
+      method: 'POST',
+      body: JSON.stringify({ create_missing_classes: createMissingClasses }),
+    }),
+  getImportJob: (jobId: string) =>
+    apiFetch<ImportJobStatusResponse>(`/api/import/${jobId}`),
+  deactivateMissingStudents: (studentIds: number[]) =>
+    apiFetch<{ message: string; deactivated_count: number }>('/api/import/deactivate-missing', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: studentIds }),
+    }),
 
   // Students
   getStudents: async (classId?: number) => {

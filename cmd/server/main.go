@@ -18,6 +18,7 @@ import (
 	"school-attendance/internal/bot"
 	"school-attendance/internal/config"
 	"school-attendance/internal/db"
+	"school-attendance/internal/importer"
 	"school-attendance/internal/scheduler"
 )
 
@@ -91,11 +92,15 @@ func main() {
 	// API routes
 	if database != nil {
 		authHandler := api.NewAuthHandler(database)
-		classHandler := api.NewClassHandler(database)
+		classHandler := api.NewClassHandler(database, cfg)
 		studentHandler := api.NewStudentHandler(database)
 		attendanceHandler := api.NewAttendanceHandler(database, cfg)
 		dashboardHandler := api.NewDashboardHandler(database, cfg)
 		reportHandler := api.NewReportHandler(database, cfg)
+
+		importerService := importer.NewService(database)
+		_ = importerService.MarkStaleJobsFailed(context.Background())
+		importHandler := api.NewImportHandler(importerService)
 
 		if cronScheduler != nil {
 			attendanceHandler.SetOnAttendanceSaved(func(studentID int64, schoolID int64, date time.Time) {
@@ -104,6 +109,9 @@ func main() {
 		}
 
 		r.Route("/api", func(apiRouter chi.Router) {
+			// Public template download
+			apiRouter.Get("/import/template", importHandler.GetTemplate)
+
 			// Protected routes with Telegram initData validation
 			apiRouter.Group(func(protected chi.Router) {
 				protected.Use(api.AuthMiddleware(cfg.BotToken, database))
@@ -119,9 +127,23 @@ func main() {
 				// Classes
 				protected.Get("/classes", classHandler.ListClasses)
 				protected.With(api.RequireRole("director")).Post("/classes", classHandler.CreateClass)
+				protected.With(api.RequireRole("director")).Post("/classes/bulk", classHandler.BulkCreateClasses)
 				protected.With(api.RequireRole("director")).Put("/classes/{id}", classHandler.UpdateClass)
 				protected.With(api.RequireRole("director")).Delete("/classes/{id}", classHandler.DeleteClass)
 				protected.With(api.RequireRole("director")).Get("/teachers", classHandler.ListTeachers)
+
+				// Class Teachers & Substitutes (Director)
+				protected.With(api.RequireRole("director")).Get("/classes/teachers/overview", classHandler.ListTeachersOverview)
+				protected.With(api.RequireRole("director")).Post("/classes/{id}/teacher", classHandler.AssignTeacher)
+				protected.With(api.RequireRole("director")).Delete("/classes/{id}/teacher", classHandler.UnassignTeacher)
+				protected.With(api.RequireRole("director")).Post("/classes/{id}/substitute", classHandler.AssignSubstitute)
+
+				// Import (Director)
+				protected.With(api.RequireRole("director")).Post("/import/preview", importHandler.Preview)
+				protected.With(api.RequireRole("director")).Post("/import/{job_id}/commit", importHandler.Commit)
+				protected.With(api.RequireRole("director")).Get("/import/{job_id}", importHandler.GetStatus)
+				protected.With(api.RequireRole("director")).Get("/import/{job_id}/errors/download", importHandler.DownloadErrors)
+				protected.With(api.RequireRole("director")).Post("/import/deactivate-missing", importHandler.DeactivateMissing)
 
 				// Students
 				protected.Get("/students", studentHandler.ListStudents)

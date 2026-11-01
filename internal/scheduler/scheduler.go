@@ -119,24 +119,39 @@ func (s *Scheduler) RemindTeachersUnmarkedClasses(ctx context.Context, schoolID 
 
 	for _, c := range classes {
 		// If attendance has not been taken and class has students
-		if c.MarkedStudents == 0 && c.TotalStudents > 0 && c.TeacherTelegramID > 0 {
-			msg := fmt.Sprintf("⏰ **ESLATMA: Davomat topshirish vaqti keldi!**\n\n"+
-				"Hurmatli *%s*, sizning **%s** sinfingiz uchun bugungi (%s) davomat hali olinmagan.\n\n"+
-				"Iltimos, dars vaqtida o'quvchilar davomatini oling va saqlang.",
-				c.TeacherName, c.ClassName, now.Format("02.01.2006"))
+		if c.MarkedStudents == 0 && c.TotalStudents > 0 {
+			targetTelegramID := c.TeacherTelegramID
+			targetName := c.TeacherName
 
-			markup := &tgbot.InlineKeyboardMarkup{
-				InlineKeyboard: [][]tgbot.InlineKeyboardButton{
-					{
-						{
-							Text:   "📋 Davomat Olish",
-							WebApp: &tgbot.WebAppInfo{URL: s.cfg.WebAppURL},
-						},
-					},
-				},
+			// Check effective teacher (substitute takes priority over primary)
+			eff, effErr := s.db.Queries.GetEffectiveTeacherForClass(ctx, db.GetEffectiveTeacherForClassParams{
+				ClassID: c.ClassID,
+				Column2: pgDate,
+			})
+			if effErr == nil && eff.TelegramID > 0 {
+				targetTelegramID = eff.TelegramID
+				targetName = eff.TeacherName
 			}
 
-			_ = s.bot.SendMessage(ctx, c.TeacherTelegramID, msg, markup)
+			if targetTelegramID > 0 {
+				msg := fmt.Sprintf("⏰ **ESLATMA: Davomat topshirish vaqti keldi!**\n\n"+
+					"Hurmatli *%s*, sizning **%s** sinfingiz uchun bugungi (%s) davomat hali olinmagan.\n\n"+
+					"Iltimos, dars vaqtida o'quvchilar davomatini oling va saqlang.",
+					targetName, c.ClassName, now.Format("02.01.2006"))
+
+				markup := &tgbot.InlineKeyboardMarkup{
+					InlineKeyboard: [][]tgbot.InlineKeyboardButton{
+						{
+							{
+								Text:   "📋 Davomat Olish",
+								WebApp: &tgbot.WebAppInfo{URL: s.cfg.WebAppURL},
+							},
+						},
+					},
+				}
+
+				_ = s.bot.SendMessage(ctx, targetTelegramID, msg, markup)
+			}
 		}
 	}
 }

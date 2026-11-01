@@ -11,6 +11,30 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const activateInvitedUser = `-- name: ActivateInvitedUser :one
+UPDATE users
+SET status = 'active', updated_at = NOW()
+WHERE telegram_id = $1 AND status = 'invited'
+RETURNING id, school_id, telegram_id, username, full_name, role, status, created_at, updated_at
+`
+
+func (q *Queries) ActivateInvitedUser(ctx context.Context, telegramID int64) (User, error) {
+	row := q.db.QueryRow(ctx, activateInvitedUser, telegramID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.SchoolID,
+		&i.TelegramID,
+		&i.Username,
+		&i.FullName,
+		&i.Role,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (school_id, telegram_id, username, full_name, role, status)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -268,6 +292,37 @@ type UpdateUserStatusByIDParams struct {
 
 func (q *Queries) UpdateUserStatusByID(ctx context.Context, arg UpdateUserStatusByIDParams) (User, error) {
 	row := q.db.QueryRow(ctx, updateUserStatusByID, arg.ID, arg.Status, arg.Role)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.SchoolID,
+		&i.TelegramID,
+		&i.Username,
+		&i.FullName,
+		&i.Role,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertInvitedUser = `-- name: UpsertInvitedUser :one
+INSERT INTO users (school_id, telegram_id, full_name, role, status)
+VALUES ($1, $2, $3, 'teacher', 'invited')
+ON CONFLICT (telegram_id) DO UPDATE
+SET school_id = EXCLUDED.school_id, full_name = EXCLUDED.full_name, role = 'teacher', updated_at = NOW()
+RETURNING id, school_id, telegram_id, username, full_name, role, status, created_at, updated_at
+`
+
+type UpsertInvitedUserParams struct {
+	SchoolID   pgtype.Int8 `json:"school_id"`
+	TelegramID int64       `json:"telegram_id"`
+	FullName   string      `json:"full_name"`
+}
+
+func (q *Queries) UpsertInvitedUser(ctx context.Context, arg UpsertInvitedUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, upsertInvitedUser, arg.SchoolID, arg.TelegramID, arg.FullName)
 	var i User
 	err := row.Scan(
 		&i.ID,

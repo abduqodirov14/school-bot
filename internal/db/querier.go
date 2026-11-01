@@ -11,23 +11,40 @@ import (
 )
 
 type Querier interface {
+	ActivateInvitedUser(ctx context.Context, telegramID int64) (User, error)
+	AssignPrimaryTeacher(ctx context.Context, arg AssignPrimaryTeacherParams) (ClassTeacher, error)
+	AssignSubstituteTeacher(ctx context.Context, arg AssignSubstituteTeacherParams) (ClassTeacher, error)
+	CheckTeacherClassAccess(ctx context.Context, arg CheckTeacherClassAccessParams) (int64, error)
 	CountActiveStudentsBySchool(ctx context.Context, schoolID int64) (int64, error)
 	CountUnexcusedAbsencesInMonth(ctx context.Context, arg CountUnexcusedAbsencesInMonthParams) (int64, error)
 	CreateAttendanceLog(ctx context.Context, arg CreateAttendanceLogParams) (AttendanceLog, error)
 	CreateClass(ctx context.Context, arg CreateClassParams) (Class, error)
+	CreateClassIfNotExists(ctx context.Context, arg CreateClassIfNotExistsParams) (Class, error)
+	CreateImportJob(ctx context.Context, arg CreateImportJobParams) (ImportJob, error)
+	CreateInvite(ctx context.Context, arg CreateInviteParams) (Invite, error)
 	CreateSchool(ctx context.Context, name string) (School, error)
 	CreateStudent(ctx context.Context, arg CreateStudentParams) (Student, error)
 	CreateThresholdAlert(ctx context.Context, arg CreateThresholdAlertParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeactivateMissingStudents(ctx context.Context, arg DeactivateMissingStudentsParams) error
 	DeactivateStudent(ctx context.Context, id int64) error
 	DeleteClass(ctx context.Context, id int64) error
 	DeleteStudent(ctx context.Context, id int64) error
+	FailStaleRunningJobs(ctx context.Context) error
+	FindStudentByNormalizedName(ctx context.Context, arg FindStudentByNormalizedNameParams) (Student, error)
+	GetActiveInviteByClass(ctx context.Context, classID int64) (Invite, error)
+	GetActivePrimaryTeacherForClass(ctx context.Context, classID int64) (GetActivePrimaryTeacherForClassRow, error)
+	GetActiveSubstituteTeacherForClass(ctx context.Context, arg GetActiveSubstituteTeacherForClassParams) (GetActiveSubstituteTeacherForClassRow, error)
 	GetAttendanceRecord(ctx context.Context, arg GetAttendanceRecordParams) (Attendance, error)
 	GetClassAttendanceByDate(ctx context.Context, arg GetClassAttendanceByDateParams) ([]GetClassAttendanceByDateRow, error)
 	GetClassByID(ctx context.Context, id int64) (GetClassByIDRow, error)
 	GetClassByName(ctx context.Context, arg GetClassByNameParams) (Class, error)
 	GetDirectorBySchool(ctx context.Context, schoolID pgtype.Int8) (User, error)
+	// Returns active substitute if exists for date, otherwise active primary
+	GetEffectiveTeacherForClass(ctx context.Context, arg GetEffectiveTeacherForClassParams) (GetEffectiveTeacherForClassRow, error)
 	GetFirstSchool(ctx context.Context) (School, error)
+	GetImportJobByID(ctx context.Context, arg GetImportJobByIDParams) (ImportJob, error)
+	GetInviteByToken(ctx context.Context, token string) (GetInviteByTokenRow, error)
 	GetMonthlyAttendanceForSchool(ctx context.Context, arg GetMonthlyAttendanceForSchoolParams) ([]GetMonthlyAttendanceForSchoolRow, error)
 	GetSchoolByID(ctx context.Context, id int64) (School, error)
 	GetSettingsBySchoolID(ctx context.Context, schoolID int64) (Setting, error)
@@ -39,8 +56,10 @@ type Querier interface {
 	GetUserByTelegramID(ctx context.Context, telegramID int64) (User, error)
 	HasThresholdAlertBeenSent(ctx context.Context, arg HasThresholdAlertBeenSentParams) (bool, error)
 	ListAbsentStudentsToday(ctx context.Context, arg ListAbsentStudentsTodayParams) ([]ListAbsentStudentsTodayRow, error)
+	ListActiveClassesForTeacher(ctx context.Context, arg ListActiveClassesForTeacherParams) ([]ListActiveClassesForTeacherRow, error)
 	ListAllUsersBySchool(ctx context.Context, schoolID pgtype.Int8) ([]User, error)
 	ListAttendanceLogsByStudent(ctx context.Context, studentID int64) ([]ListAttendanceLogsByStudentRow, error)
+	ListClassTeachersOverview(ctx context.Context, arg ListClassTeachersOverviewParams) ([]ListClassTeachersOverviewRow, error)
 	ListClassesBySchool(ctx context.Context, schoolID int64) ([]ListClassesBySchoolRow, error)
 	ListClassesByTeacherID(ctx context.Context, teacherID pgtype.Int8) ([]Class, error)
 	ListClassesWithAttendanceStatusToday(ctx context.Context, arg ListClassesWithAttendanceStatusTodayParams) ([]ListClassesWithAttendanceStatusTodayRow, error)
@@ -50,13 +69,19 @@ type Querier interface {
 	ListStudentsByClass(ctx context.Context, classID int64) ([]Student, error)
 	ListStudentsBySchool(ctx context.Context, schoolID int64) ([]ListStudentsBySchoolRow, error)
 	ListTeachersBySchool(ctx context.Context, schoolID pgtype.Int8) ([]User, error)
+	MarkInviteUsed(ctx context.Context, arg MarkInviteUsedParams) (Invite, error)
+	TerminateActivePrimaryTeacher(ctx context.Context, classID int64) error
 	UpdateClass(ctx context.Context, arg UpdateClassParams) (Class, error)
 	UpdateClassTeacher(ctx context.Context, arg UpdateClassTeacherParams) (Class, error)
+	UpdateImportJobProgress(ctx context.Context, arg UpdateImportJobProgressParams) error
+	UpdateImportJobStatus(ctx context.Context, arg UpdateImportJobStatusParams) error
 	UpdateStudent(ctx context.Context, arg UpdateStudentParams) (Student, error)
 	UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) (User, error)
 	UpdateUserStatusByID(ctx context.Context, arg UpdateUserStatusByIDParams) (User, error)
 	UpsertAttendance(ctx context.Context, arg UpsertAttendanceParams) (Attendance, error)
+	UpsertInvitedUser(ctx context.Context, arg UpsertInvitedUserParams) (User, error)
 	UpsertSettings(ctx context.Context, arg UpsertSettingsParams) (Setting, error)
+	UpsertStudentNormalized(ctx context.Context, arg UpsertStudentNormalizedParams) (Student, error)
 }
 
 var _ Querier = (*Queries)(nil)

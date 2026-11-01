@@ -54,5 +54,11 @@ SET teacher_id = $2, updated_at = NOW()
 WHERE id = $1
 RETURNING *;
 
+-- name: CreateClassIfNotExists :one
+INSERT INTO classes (school_id, name)
+VALUES ($1, $2)
+ON CONFLICT (school_id, name) DO NOTHING
+RETURNING *;
+
 -- name: DeleteClass :exec
 DELETE FROM classes WHERE id = $1;

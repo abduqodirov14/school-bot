@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"school-attendance/internal/db"
@@ -45,14 +46,32 @@ func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 				resp.Settings = &settings
 			}
 		} else if user.Role == "teacher" {
-			classes, err := h.db.Queries.ListClassesByTeacherID(r.Context(), pgtype.Int8{Int64: user.ID, Valid: true})
-			if err == nil {
+			now := time.Now()
+			todayPg := pgtype.Date{Time: now, Valid: true}
+			teacherClasses, err := h.db.Queries.ListActiveClassesForTeacher(r.Context(), db.ListActiveClassesForTeacherParams{
+				UserID:  user.ID,
+				Column2: todayPg,
+			})
+			if err == nil && len(teacherClasses) > 0 {
+				var classesList []db.Class
+				for _, tc := range teacherClasses {
+					classesList = append(classesList, db.Class{
+						ID:        tc.ID,
+						SchoolID:  tc.SchoolID,
+						TeacherID: tc.TeacherID,
+						Name:      tc.Name,
+						CreatedAt: tc.CreatedAt,
+						UpdatedAt: tc.UpdatedAt,
+					})
+				}
+				resp.Classes = classesList
+			} else {
+				// Fallback to legacy ListClassesByTeacherID
+				classes, _ := h.db.Queries.ListClassesByTeacherID(r.Context(), pgtype.Int8{Int64: user.ID, Valid: true})
 				if classes == nil {
 					classes = make([]db.Class, 0)
 				}
 				resp.Classes = classes
-			} else {
-				resp.Classes = make([]db.Class, 0)
 			}
 		}
 	}

@@ -37,6 +37,32 @@ func (q *Queries) CreateClass(ctx context.Context, arg CreateClassParams) (Class
 	return i, err
 }
 
+const createClassIfNotExists = `-- name: CreateClassIfNotExists :one
+INSERT INTO classes (school_id, name)
+VALUES ($1, $2)
+ON CONFLICT (school_id, name) DO NOTHING
+RETURNING id, school_id, teacher_id, name, created_at, updated_at
+`
+
+type CreateClassIfNotExistsParams struct {
+	SchoolID int64  `json:"school_id"`
+	Name     string `json:"name"`
+}
+
+func (q *Queries) CreateClassIfNotExists(ctx context.Context, arg CreateClassIfNotExistsParams) (Class, error) {
+	row := q.db.QueryRow(ctx, createClassIfNotExists, arg.SchoolID, arg.Name)
+	var i Class
+	err := row.Scan(
+		&i.ID,
+		&i.SchoolID,
+		&i.TeacherID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const deleteClass = `-- name: DeleteClass :exec
 DELETE FROM classes WHERE id = $1
 `
