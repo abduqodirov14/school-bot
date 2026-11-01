@@ -1,181 +1,155 @@
-# school-bot: O'zbekiston Maktablari Uchun Davomat Tizimi (School Attendance MVP)
+# school-bot
 
-Telegram Bot + Telegram Mini App (Web App) + REST API orqali maktab davomatini boshqarish va nazorat qilishning to'liq avtomatlashtirilgan zamonaviy tizimi.
-
-UI tili: **O'zbek tili (Lotin)** | Vaqt mintaqasi: **Asia/Tashkent**
+O'zbekiston maktablari uchun zamonaviy **Maktab Davomati (School Attendance)** tizimi — Telegram Bot + Telegram Mini App (Web App) + REST API.
 
 ---
 
-## 🚀 Texnologiyalar Steki
+## 📌 Texnologiyalar (Tech Stack)
 
-- **Backend:** Go 1.22+, router: `github.com/go-chi/chi/v5`, Telegram Bot: `github.com/go-telegram/bot`
-- **Ma'lumotlar bazasi:** PostgreSQL (yoki Supabase), drayver: `pgx/v5` connection pool, SQL generator: `sqlc`, migratsiyalar: `goose`
-- **Excel Eksport & Import:** `github.com/xuri/excelize/v2` (ko'p sahifali formatlangan oylik hisobotlar va o'quvchilarni import qilish)
-- **Avtomatlashtirish & Eslatmalar:** `github.com/robfig/cron/v3` (Asia/Tashkent vaqt mintaqasida har daqiqali tekshiruvlar)
-- **Frontend (Mini App):** React 19, TypeScript, Vite, Tailwind CSS v4, Lucide Icons, Telegram Web Apps SDK
-- **Konteynerlashtirish:** Ko'p bosqichli `Dockerfile` va `docker-compose.yml`
-
----
-
-## 🎯 Asosiy Rollar va Imkoniyatlar
-
-### 1. Direktor (Director)
-- **Mini App Boshqaruv Paneli:**
-  - Bugungi maktab bo'yicha umumiy statistika (Jami, Kelgan, Kelmagan, Kechikkan, Sababli).
-  - Davomat olinmagan sinflar ro'yxati va ularning o'qituvchilari.
-  - Sinflar bo'yicha guruhlangan kelmagan va kechikkan o'quvchilar ro'yxati.
-  - O'quvchining oylik davomat kalendar tarixi.
-  - Excel formatida oylik to'liq hisobotni yuklab olish.
-  - O'quvchilar ro'yxatini Excel fayl orqali ommaviy yuklash (Sinfi, F.I.Sh).
-- **Telegram Bot Buyruqlari:**
-  - `/bugun` — Bugungi umumiy davomat ko'rsatkichlari.
-  - `/kelmaganlar` — Bugun darsga kelmagan barcha o'quvchilar ro'yxati (sinflari bilan).
-  - `/sinflar` — Davomat olingan va olinmagan sinflar holati.
-  - `/hisobot` — Oylik to'liq hisobotni Excel (.xlsx) fayl ko'rinishida to'g'ridan-to'g'ri Telegramga yuborish.
-- **O'qituvchilarni Tasdiqlash:**
-  - Yangi foydalanuvchi botga `/start` bosganda holati `pending` bo'ladi.
-  - Direktorga tasdiqlash xabari va inline tugmalar keladi: `[ ✅ O'qituvchi qilib tasdiqlash ]` / `[ ❌ Rad etish ]`.
-- **Sozlamalar:**
-  - Davomat topshirish muddati (Default: `09:00`).
-  - Sababsiz qoldirish limiti (Default: `3` ta dars).
-
-### 2. O'qituvchi (Teacher)
-- **Telegram Mini App Davomat Ekrani:**
-  - O'ziga biriktirilgan sinf ro'yxati va sana.
-  - Barcha o'quvchilar dastlab "Belgilanmagan" holatida bo'ladi.
-  - **"Hammasi keldi"** tugmasi bir bosishda hammani "keldi" holatiga o'tkazadi.
-  - Har bir o'quvchi ustiga bosib holatini tezkor o'zgartirish: *Keldi* (`keldi`), *Kelmadi* (`kelmadi`), *Kechikdi* (`kechikdi`), *Sababli* (`sababli`).
-  - **"Saqlash"** tugmasi bosilmaguncha sinf "davomat olinmagan" hisoblanadi.
-  - Kun davomida tahrirlash imkoniyati (har bir tahrir `attendance_log` audit jadvaliga yoziladi).
-- **Telegram Bot Inline Keyboard Davomati (Fallback):**
-  - Mini App ochilmagan holatda botda `/davomat` buyrug'i orqali to'g'ridan-to'g'ri Telegram inline tugmalari bilan davomat qilish mumkin.
-
-### 3. Avtomatlashtirish (Cron Scheduler)
-- **09:00 (Muddati):** Davomat olmagan barcha sinf rahbarlariga bot orqali avtomatik eslatma yuboriladi.
-- **09:30 (Muddat + 30 daqiqa):** Agar hanuzgacha davomat olinmagan bo'lsa, direktorga davomat olmagan sinflar va o'qituvchilar ro'yxati haqida ogohlantirish yuboriladi.
-- **Limitdan oshish (Threshold Alert):** O'quvchining bir oydagi sababsiz dars qoldirishlari soni limitga (masalan, 3 taga) yetganda, direktorga zudlik bilan bildirishnoma yuboriladi (oyiga bir marta).
-
-### 4. Excel Oylik Hisoboti (.xlsx)
-- **1-sahifa "Umumiy":** Har bir sinf va butun maktab bo'yicha umumiy qatnashish foizlari.
-- **Sinflar sahifalari:** Qatorlarda o'quvchilar, ustunlarda oy kunlari (1..31), katakchalarda rangli belgilar (`+`, `-`, `K`, `S`), o'quvchi bo'yicha jami hisob-kitoblar, qotirilgan panellar (frozen panes).
-- Limitdan oshgan o'quvchilar qizil rang bilan ajratib ko'rsatiladi.
+- **Backend:** Go 1.22+, Chi router, `github.com/go-telegram/bot`
+- **Database:** PostgreSQL (Supabase / AWS RDS), `pgx/v5` connection pool, SQL queries via `sqlc`, migratsiyalar `goose`
+- **Frontend (Mini App):** React 19 + TypeScript + Vite + Tailwind CSS (`@telegram-apps/sdk`)
+- **Hisobotlar (Excel):** `github.com/xuri/excelize/v2` (.xlsx ko'rinishida ko'p varaqli, rangli katakchalar, muzlatilgan panellar)
+- **Avtomatizatsiya (Scheduler):** `github.com/robfig/cron/v3` (`Asia/Tashkent` vaqt zonasida)
+- **Konteynerlash:** Docker multi-stage build & Docker Compose
 
 ---
 
-## 🛠️ O'rnatish va Ishga Tushirish
+## 👥 Foydalanuvchi rollari va huquqlari
 
-### 1. Talablar
-- Go 1.22 yoki undan yuqori
-- Node.js 20+ va npm (agar lokal web build qilinsa)
-- PostgreSQL yoki Supabase ma'lumotlar bazasi
-- Telegram Bot Token ([@BotFather](https://t.me/BotFather) dan olinadi)
+1. **Direktor (director):**
+   - Maktabdagi barcha sinflar va o'quvchilar umumiy statistikasini ko'radi (Mini App boshqaruv paneli).
+   - Yangi o'qituvchilarni tasdiqlaydi (bot orqali tasdiqlash/rad etish inline tugmalari).
+   - Sinflar va o'quvchilarni yaratish, tahrirlash, o'chirish.
+   - Excel orqali o'quvchilar ro'yxatini yuklash (`POST /api/students/import`).
+   - Oylik Excel davomat hisobotini yuklab olish (`GET /api/reports/monthly` yoki `/hisobot`).
+   - Bot buyruqlari: `/bugun`, `/kelmaganlar`, `/sinflar`, `/hisobot`.
+   - Har bir o'quvchi bo'yicha shaxsiy oylik kalendar tarixi.
+   - Sozlamalar: oylik ruxsatsiz dars qoldirish chegarasi (standart: 3) va davomat topshirish vaqti (standart: 09:00).
 
-### 2. Muhit O'zgaruvchilari (.env)
+2. **O'qituvchi (teacher):**
+   - Faqat o'ziga biriktirilgan sinf(lar) davomatini oladi.
+   - Mini App ochilganda bugungi sana va barcha o'quvchilar "Belgilanmagan" (unmarked) holatda chiqadi.
+   - **"Hammasi keldi"** tugmasi bir bosishda barcha o'quvchilarni "Keldi" qiladi, so'ng faqat kelmaganlarni o'zgartirish kifoya.
+   - Statuslar: `Keldi (+)` -> `Kelmadi (-)` -> `Kechikdi (K)` -> `Sababli (S)`.
+   - Kun davomida davomatni qayta tahrirlash imkoniyati (har bir o'zgarish `attendance_log` audit jadvaliga yoziladi).
+   - Bot orqali inline tugmali variant: `/davomat` buyrug'i.
 
-Loyihaning ildiz papkasida `.env` fayl yarating:
+---
 
-```env
+## ⏰ Avtomatizatsiya (Cron Schedules)
+
+Barcha vaqtlar **Asia/Tashkent** bo'yicha ishlaydi:
+- **Belgilangan vaqtda (masalan, 09:00):** Davomat olmagan sinf o'qituvchilariga bot orqali eslatma yuboriladi.
+- **Belgilangan vaqt + 30 daqiqa (masalan, 09:30):** Hali ham davomat olmagan sinflar ro'yxati direktorga yuboriladi.
+- **Ruxsatsiz dars qoldirish chegarasi (Threshold alert):** O'quvchi bir oyda 3 marta (yoki sozlangan sondan ko'p) sababsiz dars qoldirsa, direktorga darhol ogohlantirish yuboriladi (har bir o'quvchi uchun oyiga faqat 1 marta).
+
+---
+
+## 🚀 O'rnatish va Ishga tushirish (Local Setup)
+
+### 1. Talablar:
+- Go 1.22+
+- Node.js 20+ va npm
+- PostgreSQL (yoki Supabase)
+
+### 2. Konfiguratsiya:
+`.env` faylini yarating:
+```bash
+cp .env.example .env
+```
+Parametrlarni kiriting:
+```ini
 PORT=8080
-BOT_TOKEN=7777777777:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+BOT_TOKEN=1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ
 DATABASE_URL=postgresql://postgres.vlavjveawxlrevfeljop:school-bot1%40112121212@aws-0-eu-north-1.pooler.supabase.com:5432/postgres?sslmode=require
-WEB_APP_URL=https://your-domain.com
-DIRECTOR_TELEGRAM_ID=123456789
+WEB_APP_URL=https://your-domain-or-tunnel.com
+DIRECTOR_TELEGRAM_ID=YOUR_TELEGRAM_ID
 TIMEZONE=Asia/Tashkent
 ```
 
-> **Eslatma (Supabase):** Agar parolingizda `@` belgisi bo'lsa, uni URL-kodlang (masalan `@` o'rniga `%40`). Goose va transaction pooler uchun port `5432` va `?sslmode=require` parametrlarini ishlating.
+> **Eslatma:** Supabase ulanishida parolida `@` belgisi bo'lsa, URL-encoded ko'rinishda `%40` deb yoziladi va session ulanish uchun port `5432` ishlatiladi.
 
-### 3. Migratsiyalar (Baza Jadvallari)
-
-Dastur ishga tushganda o'rnatilgan goose migratsiyalari avtomatik tarzda bazaga qo'llaniladi. Agar alohida qo'lda ishga tushirmoqchi bo'lsangiz:
-
+### 3. Migratsiyalarni ishga tushirish:
+Tizim dastur ishga tushganda avtomatik ravishda migratsiyalarni bajaradi. Qo'lda tekshirish uchun:
 ```bash
-# Goose orqali:
 goose -dir migrations postgres "$DATABASE_URL" up
-
-# Supabase CLI orqali (ixtiyoriy):
-supabase link --project-ref vlavjveawxlrevfeljop
-supabase db push
 ```
 
-### 4. Lokal Rivojlantirish
-
+### 4. Frontendni qurish (Build Frontend):
 ```bash
-# 1. Frontendni yig'ish (build)
 cd web
 npm install
 npm run build
 cd ..
-
-# 2. Serverni ishga tushirish (API + Bot + Cron + Mini App)
-go run ./cmd/server
 ```
 
-Server ishga tushgach:
-- REST API: `http://localhost:8080/api`
-- Health check: `http://localhost:8080/health`
-- Mini App: `http://localhost:8080/`
+### 5. Backendni ishga tushirish:
+```bash
+go run ./cmd/server
+```
+Server `http://localhost:8080` manzilida ishga tushadi va bir vaqtning o'zida Telegram Bot va Web App'ni xizmat ko'rsatadi.
 
 ---
 
-## 🤖 Telegram BotFather orqali Mini App sozlash
+## 🤖 Telegram Bot & Mini App ni BotFather da ulash
 
-1. [@BotFather](https://t.me/BotFather) ga kiring va `/mybots` buyrug'ini bering.
-2. O'zingizning botingizni tanlang.
-3. **Bot Settings** -> **Menu Button** -> **Configure menu button** ni bosing.
-4. Mini App havolasini kiriting (masalan: `https://your-domain.com/` yoki ngrok havolasi).
-5. Tugma nomiga masalan **"Davomat tizimi"** deb yozing.
-6. Shuningdek, `/newapp` buyrug'i orqali alohida Web App havolasi (masalan `t.me/botusername/app`) yaratishingiz mumkin.
+1. [@BotFather](https://t.me/BotFather) ga kiring va `/newbot` buyrug'i bilan yangi bot yarating. Olingan `token`ni `BOT_TOKEN`ga qo'ying.
+2. Bot menyusiga Mini App tugmasini qo'shish:
+   - BotFather da `/mybots` -> Botingizni tanlang -> `Bot Settings` -> `Menu Button` -> `Configure menu button`.
+   - Mini App URL manzilini kiriting: `https://your-domain.com` (HTTPS shart, ngrok yoki domen).
+   - Tugma nomiga masalan: `📱 Davomat ilovasi` deb yozing.
+3. Yangi Web App havolasi (ixtiyoriy):
+   - BotFather da `/newapp` -> Botingizni tanlang -> Ilova nomi va rasmini bering -> URL sifatida `https://your-domain.com` kiriting -> Short name oling (masalan, `app`).
+   - To'g'ridan-to'g'ri havola: `https://t.me/your_bot?startapp=launch`.
 
 ---
 
-## 🐳 Docker va Serverga Joylash (Deployment)
+## 🐳 Docker orqali Deploy qilish
 
-Tizim ko'p bosqichli Dockerfile orqali bitta ixcham konteynerda frontend, backend va barcha resurslarni birlashtiradi.
-
-### Docker orqali ishga tushirish:
-
+Yagona buyruq bilan barcha komponentlarni ko'tarish:
 ```bash
 docker compose up -d --build
 ```
+`Dockerfile` multi-stage:
+1. Node.js orqali Vite frontendni to'liq kompilyatsiya qiladi.
+2. Go kompilyatori orqali statik binar fayl yaratadi.
+3. Alpine asosidagi yengil konteynerda `Asia/Tashkent` vaqt zonasi bilan xavfsiz ishga tushiradi.
 
-Konteyner holatini tekshirish:
-```bash
-docker compose logs -f school-attendance
+---
+
+## 📂 Loyiha tuzilmasi (Clean Architecture)
+
+```
+├── cmd/
+│   └── server/          # Main entrypoint (Chi HTTP router, Bot, Cron, SPA static server)
+├── internal/
+│   ├── api/             # REST API handlerlar va initData HMAC-SHA256 middleware
+│   ├── auth/            # Telegram Web App initData validatsiyasi
+│   ├── bot/             # Telegram Bot mantiqi, inline tasdiqlash, buyruqlar, davomat tugmalari
+│   ├── config/          # Muhit o'zgaruvchilari (env) yuklovchi
+│   ├── db/              # sqlc generatsiya qilgan kod va pgxpool ulanish
+│   ├── export/          # Excelize orqali zamonaviy .xlsx hisoboti
+│   ├── scheduler/       # Robfig Cron eslatmalar va dars qoldirish ogohlantirishlari
+│   └── service/         # Davomat biznes logikasi va status o'zgarishlari
+├── migrations/          # Goose SQL migratsiyalari
+├── supabase/            # Supabase CLI uchun migratsiyalar
+├── web/                 # React 19 + TypeScript + Vite + Tailwind Mini App
+├── Dockerfile           # Multi-stage production container
+├── docker-compose.yml   # Docker compose konfiguratsiyasi
+└── README.md
 ```
 
 ---
 
-## 🧪 Testlarni Ishga Tushirish
+## 🧪 Sinovlar (Unit Tests)
 
-Tizim barcha asosiy mantiqiy bloklar (initData xavfsizligi, ruxsatlar, limit hisob-kitoblari, davomat sikllari, Excel eksport) bo'yicha to'liq testlar bilan ta'minlangan:
-
+Barcha asosiy mantiq to'liq testlangan:
 ```bash
 go test -v ./...
 ```
+- Telegram `initData` HMAC-SHA256 tekshiruvi va soxtalashtirishdan himoya
+- Oylik sababsiz dars qoldirish chegarasi (threshold) mantiqi va oyiga 1 marta ogohlantirish
+- Davomat statuslarining almashinuvi (`unmarked` -> `present` -> `absent` -> `late` -> `excused`)
+- Excel import va ko'p varaqli hisobot generatsiyasi
 
----
-
-## 📂 Loyiha Tuzilishi
-
-```text
-├── cmd/
-│   └── server/          # Asosiy ishga tushiruvchi kod (main.go)
-├── db/
-│   └── queries/         # sqlc SQL so'rovlari
-├── internal/
-│   ├── api/             # Chi router HTTP handlerlari va middleware
-│   ├── auth/            # Telegram initData HMAC-SHA256 tekshiruvi
-│   ├── bot/             # Telegram bot handlerlari va inline interfeyslar
-│   ├── config/          # Muhit o'zgaruvchilari konfiguratsiyasi
-│   ├── db/              # sqlc generatsiya qilgan kod va pgxpool ulanishi
-│   ├── export/          # Excelize orqali formatlangan oylik hisobot eksporti
-│   ├── scheduler/       # Cron scheduler (eslatmalar va limit ogohlantirishlari)
-│   └── service/         # Davomat va biznes mantiq servislari
-├── migrations/          # Goose SQL migratsiyalari
-├── supabase/            # Supabase CLI migratsiyalari
-├── web/                 # React + TypeScript + Tailwind CSS Telegram Mini App
-├── Dockerfile           # Multi-stage Docker konteyner
-├── docker-compose.yml   # Docker compose konfiguratsiyasi
-└── README.md            # Loyiha qo'llanmasi
-```
