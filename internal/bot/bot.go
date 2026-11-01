@@ -121,8 +121,18 @@ func (b *Bot) handleStart(ctx context.Context, botInstance *tgbot.Bot, update *m
 	sID := pgtype.Int8{Int64: schoolID, Valid: schoolID != 0}
 	usernameText := pgtype.Text{String: from.Username, Valid: from.Username != ""}
 
-	// 1. Is this the configured Director?
+	// 1. Is this the configured Director or the first user when no director exists yet?
+	isDirector := false
 	if b.cfg.DirectorTelegramID != 0 && from.ID == b.cfg.DirectorTelegramID {
+		isDirector = true
+	} else if b.cfg.DirectorTelegramID == 0 {
+		_, dirErr := b.db.Queries.GetDirectorBySchool(ctx, sID)
+		if dirErr != nil {
+			isDirector = true
+		}
+	}
+
+	if isDirector {
 		user, err := b.db.Queries.GetUserByTelegramID(ctx, from.ID)
 		if err != nil {
 			// Register as active director
@@ -161,7 +171,8 @@ func (b *Bot) handleStart(ctx context.Context, botInstance *tgbot.Bot, update *m
 			"Shuningdek, quyidagi buyruqlardan foydalanishingiz mumkin:\n"+
 			"📊 /bugun — Bugungi umumiy davomat ko'rsatkichi\n"+
 			"❌ /kelmaganlar — Bugun darsga kelmaganlar ro'yxati\n"+
-			"🏫 /sinflar — Barcha sinflar holati", fullName)
+			"🏫 /sinflar — Barcha sinflar holati\n"+
+			"📑 /hisobot — Oylik Excel hisobotni yuklash", fullName)
 
 		_, _ = botInstance.SendMessage(ctx, &tgbot.SendMessageParams{
 			ChatID:      chatID,
