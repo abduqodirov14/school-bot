@@ -140,8 +140,8 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
     setLoadingClasses(true);
     try {
       const [cls, tch] = await Promise.all([api.getClasses(), api.getTeachers()]);
-      setClasses(cls);
-      setTeachers(tch);
+      setClasses(Array.isArray(cls) ? cls : []);
+      setTeachers(Array.isArray(tch) ? tch : []);
     } catch (err: any) {
       showToast(err.message || 'Sinflarni yuklab bo‘lmadi');
     } finally {
@@ -153,7 +153,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
     setLoadingStudents(true);
     try {
       const data = await api.getStudents(classId);
-      setStudents(data);
+      setStudents(Array.isArray(data) ? data : []);
     } catch (err: any) {
       showToast(err.message || 'O‘quvchilarni yuklab bo‘lmadi');
     } finally {
@@ -311,7 +311,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
     }
   };
 
-  const filteredStudents = students.filter(s => {
+  const filteredStudents = (students || []).filter(s => {
     const matchName = s.full_name?.toLowerCase().includes(studentSearch.toLowerCase());
     const matchClass = selectedClassFilter ? s.class_id === selectedClassFilter : true;
     return matchName && matchClass;
@@ -575,7 +575,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
         {activeTab === 'classes' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold text-slate-700">Mavjud Sinflar ({classes.length})</h2>
+              <h2 className="text-xs font-bold text-slate-700">Mavjud Sinflar ({(classes || []).length})</h2>
               <button
                 onClick={() => {
                   setEditingClass(null);
@@ -591,13 +591,13 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
 
             {loadingClasses ? (
               <div className="text-center py-12 text-slate-400 text-xs">Yuklanmoqda...</div>
-            ) : classes.length === 0 ? (
+            ) : (classes || []).length === 0 ? (
               <div className="bg-white rounded-xl p-8 text-center text-slate-400 text-xs border border-slate-200">
                 Sinflar mavjud emas. Yuqoridagi tugma orqali yarating.
               </div>
             ) : (
               <div className="space-y-2">
-                {classes.map(c => (
+                {(classes || []).map(c => (
                   <div
                     key={c.id}
                     className="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs flex items-center justify-between"
@@ -685,7 +685,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
                   className="w-full py-1.5 px-2 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="">Barcha sinflar</option>
-                  {classes.map(c => (
+                  {(classes || []).map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
@@ -697,13 +697,13 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
             {/* Students List */}
             {loadingStudents ? (
               <div className="text-center py-12 text-slate-400 text-xs">Yuklanmoqda...</div>
-            ) : filteredStudents.length === 0 ? (
+            ) : (filteredStudents || []).length === 0 ? (
               <div className="bg-white rounded-xl p-8 text-center text-slate-400 text-xs border border-slate-200">
                 O'quvchilar topilmadi.
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredStudents.map((st, i) => (
+                {(filteredStudents || []).map((st, i) => (
                   <div
                     key={st.id}
                     className="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs flex items-center justify-between"
@@ -829,7 +829,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
                   className="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="">O'qituvchi biriktirilmasin</option>
-                  {teachers.map(t => (
+                  {(teachers || []).map(t => (
                     <option key={t.id} value={t.id}>
                       {t.full_name}
                     </option>
@@ -878,7 +878,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
                   onChange={e => setStudentClassIdInput(Number(e.target.value))}
                   className="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  {classes.map(c => (
+                  {(classes || []).map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
@@ -927,8 +927,8 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
               <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-xs space-y-1 mb-3">
                 <p>✅ <strong>{importResult.imported}</strong> ta o'quvchi import qilindi</p>
                 <p>🏫 <strong>{importResult.classes}</strong> ta yangi sinf yaratildi</p>
-                {importResult.errors.length > 0 && (
-                  <p className="text-rose-600 text-[11px]">Xatoliklar: {importResult.errors.length} ta qator</p>
+                {(importResult.errors || []).length > 0 && (
+                  <p className="text-rose-600 text-[11px]">Xatoliklar: {(importResult.errors || []).length} ta qator</p>
                 )}
               </div>
             )}
@@ -1010,10 +1010,10 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
 
                 {/* Calendar Days Grid */}
                 <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                  {selectedStudentHistory.days.length === 0 ? (
+                  {(selectedStudentHistory.days || []).length === 0 ? (
                     <p className="text-center py-4 text-xs text-slate-400">Ushbu oyda davomat qayd etilmagan</p>
                   ) : (
-                    selectedStudentHistory.days.map(d => {
+                    (selectedStudentHistory.days || []).map(d => {
                       let colorClass = 'bg-slate-100 text-slate-600';
                       let statusText = 'Belgilanmagan';
                       if (d.status === 'present') {

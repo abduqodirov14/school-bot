@@ -70,7 +70,10 @@ export const api = {
   getMe: () => apiFetch<UserProfileResponse>('/api/auth/me'),
 
   // Classes
-  getClasses: () => apiFetch<ClassItem[]>('/api/classes'),
+  getClasses: async () => {
+    const res = await apiFetch<ClassItem[]>('/api/classes');
+    return Array.isArray(res) ? res : [];
+  },
   createClass: (data: { name: string; teacher_id?: number | null }) =>
     apiFetch<ClassItem>('/api/classes', {
       method: 'POST',
@@ -85,12 +88,16 @@ export const api = {
     apiFetch<{ message: string }>(`/api/classes/${id}`, {
       method: 'DELETE',
     }),
-  getTeachers: () => apiFetch<TeacherItem[]>('/api/teachers'),
+  getTeachers: async () => {
+    const res = await apiFetch<TeacherItem[]>('/api/teachers');
+    return Array.isArray(res) ? res : [];
+  },
 
   // Students
-  getStudents: (classId?: number) => {
+  getStudents: async (classId?: number) => {
     const q = classId ? `?class_id=${classId}` : '';
-    return apiFetch<any[]>(`/api/students${q}`);
+    const res = await apiFetch<any[]>(`/api/students${q}`);
+    return Array.isArray(res) ? res : [];
   },
   getStudent: (id: number) => apiFetch<any>(`/api/students/${id}`),
   createStudent: (data: { class_id: number; full_name: string }) =>
@@ -152,8 +159,12 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  getStudentHistory: (studentId: number, month?: string) => {
+  getStudentHistory: async (studentId: number, month?: string) => {
     const q = month ? `?month=${month}` : '';
-    return apiFetch<StudentHistoryResponse>(`/api/students/${studentId}/history${q}`);
+    const res = await apiFetch<StudentHistoryResponse>(`/api/students/${studentId}/history${q}`);
+    return {
+      ...res,
+      days: Array.isArray(res.days) ? res.days : [],
+    };
   },
 };

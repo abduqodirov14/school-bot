@@ -47,7 +47,12 @@ func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		} else if user.Role == "teacher" {
 			classes, err := h.db.Queries.ListClassesByTeacherID(r.Context(), pgtype.Int8{Int64: user.ID, Valid: true})
 			if err == nil {
+				if classes == nil {
+					classes = make([]db.Class, 0)
+				}
 				resp.Classes = classes
+			} else {
+				resp.Classes = make([]db.Class, 0)
 			}
 		}
 	}

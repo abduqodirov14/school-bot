@@ -204,7 +204,7 @@ export const TeacherAttendance: React.FC<Props> = ({ initialClasses, schoolName 
               onChange={e => setSelectedClassId(Number(e.target.value))}
               className="w-full bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              {classes.map(c => (
+              {(classes || []).map(c => (
                 <option key={c.id} value={c.id}>
                   {c.name} sinfi
                 </option>
@@ -229,7 +229,7 @@ export const TeacherAttendance: React.FC<Props> = ({ initialClasses, schoolName 
         <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-600">
-              Jami: <strong>{students.length}</strong> nafar o'quvchi
+              Jami: <strong>{(students || []).length}</strong> nafar o'quvchi
             </span>
             <button
               onClick={handleAllPresent}
@@ -280,7 +280,7 @@ export const TeacherAttendance: React.FC<Props> = ({ initialClasses, schoolName 
             <div className="animate-spin w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full mx-auto mb-2" />
             Yuklanmoqda...
           </div>
-        ) : students.length === 0 ? (
+        ) : (students || []).length === 0 ? (
           <div className="bg-white rounded-xl p-8 text-center text-slate-500 border border-slate-200 text-xs">
             Ushbu sinfda o'quvchilar ro'yxati mavjud emas.
           </div>
@@ -289,7 +289,7 @@ export const TeacherAttendance: React.FC<Props> = ({ initialClasses, schoolName 
             <p className="text-[11px] text-slate-500 px-1">
               💡 O'quvchi ustiga bosib holatini o'zgartiring (Keldi ➔ Kelmadi ➔ Kechikdi ➔ Sababli):
             </p>
-            {students.map((student, index) => (
+            {(students || []).map((student, index) => (
               <div
                 key={student.student_id}
                 onClick={() => handleStudentClick(student.student_id)}
@@ -333,7 +333,7 @@ export const TeacherAttendance: React.FC<Props> = ({ initialClasses, schoolName 
         <div className="max-w-xl mx-auto flex items-center gap-3">
           <button
             onClick={handleSave}
-            disabled={saving || loading || students.length === 0}
+            disabled={saving || loading || (students || []).length === 0}
             className="flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-98 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 text-sm transition-all"
           >
             <Save className="w-4 h-4 stroke-[2.5]" />

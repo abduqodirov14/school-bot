@@ -62,6 +62,9 @@ func (h *StudentHandler) ListStudents(w http.ResponseWriter, r *http.Request) {
 			JSONError(w, "O'quvchilarni yuklashda xatolik: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if students == nil {
+			students = make([]db.Student, 0)
+		}
 		JSONResponse(w, students, http.StatusOK)
 		return
 	}
@@ -76,6 +79,9 @@ func (h *StudentHandler) ListStudents(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		JSONError(w, "O'quvchilarni yuklashda xatolik: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if students == nil {
+		students = make([]db.ListStudentsBySchoolRow, 0)
 	}
 	JSONResponse(w, students, http.StatusOK)
 }

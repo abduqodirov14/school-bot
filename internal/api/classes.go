@@ -43,6 +43,9 @@ func (h *ClassHandler) ListClasses(w http.ResponseWriter, r *http.Request) {
 			JSONError(w, "Sinflarni yuklashda xatolik: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if classes == nil {
+			classes = make([]db.ListClassesWithStudentCountRow, 0)
+		}
 		JSONResponse(w, classes, http.StatusOK)
 		return
 	}
@@ -52,6 +55,9 @@ func (h *ClassHandler) ListClasses(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		JSONError(w, "Sinflarni yuklashda xatolik: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if classes == nil {
+		classes = make([]db.Class, 0)
 	}
 	JSONResponse(w, classes, http.StatusOK)
 }
@@ -158,6 +164,9 @@ func (h *ClassHandler) ListTeachers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		JSONError(w, "O'qituvchilarni yuklashda xatolik: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+	if teachers == nil {
+		teachers = make([]db.User, 0)
 	}
 
 	JSONResponse(w, teachers, http.StatusOK)
