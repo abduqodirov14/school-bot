@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	_ "time/tzdata"
 )
 
 type Config struct {
@@ -53,7 +54,8 @@ func Load() (*Config, error) {
 
 	loc, err := time.LoadLocation(tzStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid timezone %s: %w", tzStr, err)
+		// Fallback to UTC+5 for Tashkent
+		loc = time.FixedZone("Asia/Tashkent", 5*60*60)
 	}
 
 	return &Config{
