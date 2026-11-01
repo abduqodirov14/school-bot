@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"school-attendance/internal/auth"
 	"school-attendance/internal/db"
 )
@@ -62,8 +63,44 @@ func AuthMiddleware(botToken string, database *db.DB) func(http.Handler) http.Ha
 
 			user, err := database.Queries.GetUserByTelegramID(r.Context(), tgUser.ID)
 			if err != nil {
-				JSONError(w, "Foydalanuvchi tizimda topilmadi. Avval Telegram botida /start bosing.", http.StatusUnauthorized)
-				return
+				// Agar foydalanuvchi bazada bo'lmasa, avtomatik yaratish
+				school, schoolErr := database.Queries.GetFirstSchool(r.Context())
+				var sID pgtype.Int8
+				if schoolErr == nil {
+					sID = pgtype.Int8{Int64: school.ID, Valid: true}
+				}
+				fullName := strings.TrimSpace(tgUser.FirstName + " " + tgUser.LastName)
+				if fullName == "" {
+					fullName = tgUser.Username
+					if fullName == "" {
+						fullName = "Foydalanuvchi"
+					}
+				}
+
+				// Maktabda direktor bo'lmasa, birinchi kirgan odam direktor bo'ladi
+				role := "teacher"
+				status := "pending"
+				if sID.Valid {
+					_, dirErr := database.Queries.GetDirectorBySchool(r.Context(), sID)
+					if dirErr != nil {
+						role = "director"
+						status = "active"
+					}
+				}
+
+				newUser, createErr := database.Queries.CreateUser(r.Context(), db.CreateUserParams{
+					SchoolID:   sID,
+					TelegramID: tgUser.ID,
+					Username:   pgtype.Text{String: tgUser.Username, Valid: tgUser.Username != ""},
+					FullName:   fullName,
+					Role:       role,
+					Status:     status,
+				})
+				if createErr != nil {
+					JSONError(w, "Foydalanuvchini yaratishda xatolik: "+createErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				user = newUser
 			}
 
 			if user.Status == "pending" {
