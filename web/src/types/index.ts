@@ -134,3 +134,11 @@ export interface StudentHistoryResponse {
   exceeded_threshold: boolean;
   days: StudentHistoryDayItem[];
 }
+
+export const getTashkentDate = (d: Date = new Date()): string => {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(d);
+};
+
+export const getTashkentMonth = (d: Date = new Date()): string => {
+  return getTashkentDate(d).slice(0, 7);
+};

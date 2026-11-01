@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api, getInitData } from '../api/client';
+import { getTashkentDate, getTashkentMonth } from '../types';
 import type {
   ClassItem,
   SettingsData,
@@ -36,7 +37,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
   const [activeTab, setActiveTab] = useState<'today' | 'classes' | 'students' | 'settings'>('today');
 
   // Today Dashboard State
-  const [todayDate, setTodayDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [todayDate, setTodayDate] = useState<string>(getTashkentDate());
   const [dashboard, setDashboard] = useState<TodayDashboardResponse | null>(null);
   const [loadingDashboard, setLoadingDashboard] = useState<boolean>(false);
 
@@ -66,7 +67,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
   // Student History Calendar State
   const [historyModalOpen, setHistoryModalOpen] = useState<boolean>(false);
   const [selectedStudentHistory, setSelectedStudentHistory] = useState<StudentHistoryResponse | null>(null);
-  const [historyMonth, setHistoryMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [historyMonth, setHistoryMonth] = useState<string>(getTashkentMonth()); // YYYY-MM
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
 
   // Settings State
@@ -255,7 +256,7 @@ export const DirectorDashboard: React.FC<Props> = ({ schoolName }) => {
     if (!selectedStudentHistory) return;
     const [y, m] = historyMonth.split('-').map(Number);
     let newDate = new Date(y, m - 1 + direction, 1);
-    const newMonthStr = newDate.toISOString().slice(0, 7);
+    const newMonthStr = getTashkentMonth(newDate);
     setHistoryMonth(newMonthStr);
     setLoadingHistory(true);
     try {

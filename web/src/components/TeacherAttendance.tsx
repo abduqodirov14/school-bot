@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
+import { getTashkentDate } from '../types';
 import type { AttendanceStatus, ClassItem, StudentAttendanceItem } from '../types';
 import { Check, X, Clock, FileText, CheckCircle2, AlertCircle, Save, HelpCircle, MessageSquare } from 'lucide-react';
 
@@ -11,7 +12,7 @@ interface Props {
 export const TeacherAttendance: React.FC<Props> = ({ initialClasses, schoolName }) => {
   const [classes] = useState<ClassItem[]>(initialClasses);
   const [selectedClassId, setSelectedClassId] = useState<number>(initialClasses[0]?.id || 0);
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState<string>(getTashkentDate());
   const [students, setStudents] = useState<StudentAttendanceItem[]>([]);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
