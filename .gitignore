@@ -1,0 +1,37 @@
+# Binaries and executables
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+/server
+
+# Go test and cache
+*.test
+*.out
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Node and Vite
+node_modules/
+web/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Frontend build output
+web/dist/
+
+# IDE and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,0 +1,10 @@
+.git
+.github
+.env
+.env.*
+node_modules
+web/node_modules
+web/dist
+*.exe
+*.test
+*.out

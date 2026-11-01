@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: school-attendance-app
+    restart: always
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - PORT=8080
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DATABASE_URL=${DATABASE_URL}
+      - WEB_APP_URL=${WEB_APP_URL}
+      - DIRECTOR_TELEGRAM_ID=${DIRECTOR_TELEGRAM_ID}
+      - TIMEZONE=${TIMEZONE:-Asia/Tashkent}
+    depends_on:
+      - db
+    networks:
+      - school-net
+
+  db:
+    image: postgres:16-alpine
+    container_name: school-attendance-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      POSTGRES_DB: ${POSTGRES_DB:-school_attendance}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - school-net
+
+volumes:
+  pgdata:
+
+networks:
+  school-net:
+    driver: bridge
